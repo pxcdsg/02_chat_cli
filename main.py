@@ -4,16 +4,20 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
+#上面是导入本代码需要用到的包，但是我不知道每个包具体是导入来干什么的。
 
 
-BASE_DIR = Path(__file__).parent
-DATA_FILE = BASE_DIR / "history.json"
-MODEL = "deepseek-chat"
-MAX_HISTORY_MESSAGES = 20
+BASE_DIR = Path(__file__).parent#这段我不理解是做什么的
+DATA_FILE = BASE_DIR / "history.json"#这个文件我知道是用来记录对话内容的，但是我不不知道BASE_DIR / 是上面语法，我好像没见过。
+MODEL = "deepseek-chat"#这个是定义所使用的大语言模型
+MAX_HISTORY_MESSAGES = 20#这个是定义最大的上下文条数
 
-load_dotenv(BASE_DIR / ".env", override=True)
+load_dotenv(BASE_DIR / ".env", override=True)#这段我知道是强制使用.env中的密钥，但是我不值得load_dotenv（）这个函数是什么意思。
 
-
+#定义一个链接第三方大语言模型的函数，接入密钥，要是密钥不存在的话就输出：没有找到 DEEPSEEK_API_KEY，请检查项目根目录的 .env 文件。
+# 但是我不知道os.getenv这个函数是什么意思
+#最终返回一个带有baseURL和api_key的内容，我不知道这个OpenAI（）是什么格式的返回。
+# 但是我能大概明白这个应该是想和deepseek去建立链接，因为我用codex++或者ccswitch还有进行一些大模型配置的时候好像都需要填写这类内容。
 def create_client():
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key:
@@ -24,7 +28,9 @@ def create_client():
         base_url="https://api.deepseek.com",
     )
 
-
+#定义一个函数，首先判断DATA_FILE是否为空，若为空则返回一个[]。这是一个空列表吗？
+#后面的json.loads这个函数我没看懂，还有isinstance这个函数我也没看懂
+#这个整体的一个语言我不太明白。
 def load_history():
     """读取本地对话历史；文件不存在或损坏时从空对话开始。"""
     if not DATA_FILE.exists():
@@ -40,7 +46,7 @@ def load_history():
         return data
     return []
 
-
+#这是定义了一个对话保存函数，其中json.dumps这个函数我不知道是什么意思，然后把字符编码格式改为了utf-8
 def save_history(messages):
     """把完整对话保存到 history.json。"""
     DATA_FILE.write_text(
@@ -48,7 +54,7 @@ def save_history(messages):
         encoding="utf-8",
     )
 
-
+#这些代码我都看不太懂，上下文目前就是靠只保留最近的几点来解决上下文溢出的内容吗？我看面试好像很多都喜欢问我们自己的项目是怎么解决上下文的问题的。
 def trim_history(messages):
     """保留 system 消息和最近若干条对话，避免上下文无限增长。"""
     system_messages = [m for m in messages if m.get("role") == "system"]
@@ -56,6 +62,7 @@ def trim_history(messages):
     return system_messages + chat_messages[-MAX_HISTORY_MESSAGES:]
 
 
+#这个就是与将消息发送给Deepseek，然后接收deepseek的回复并返回。
 def ask_model(client, messages):
     """把消息发送给 DeepSeek，并返回模型的文本回复。"""
     response = client.chat.completions.create(
