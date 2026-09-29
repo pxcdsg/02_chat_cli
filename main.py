@@ -60,6 +60,7 @@ def trim_history(messages):
     system_messages = [m for m in messages if m.get("role") == "system"]
     chat_messages = [m for m in messages if m.get("role") != "system"]
     return system_messages + chat_messages[-MAX_HISTORY_MESSAGES:]
+#拼接固定system消息和最近的MAX_HISTORY_MESSAGES这个数量的对话messages
 
 
 #这个就是与将消息发送给Deepseek，然后接收deepseek的回复并返回。
