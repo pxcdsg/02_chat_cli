@@ -19,14 +19,29 @@ load_dotenv(BASE_DIR / ".env", override=True)#这段我知道是强制使用.env
 #最终返回一个带有baseURL和api_key的内容，我不知道这个OpenAI（）是什么格式的返回。
 # 但是我能大概明白这个应该是想和deepseek去建立链接，因为我用codex++或者ccswitch还有进行一些大模型配置的时候好像都需要填写这类内容。
 def create_client():
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-    if not api_key:
-        raise RuntimeError("没有找到 DEEPSEEK_API_KEY，请检查项目根目录的 .env 文件。")
+    provider = os.getenv("LLM_PROVIDER", "deepseek").strip().lower()
 
-    return OpenAI(
-        api_key=api_key,
-        base_url="https://api.deepseek.com",
-    )
+    if provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise RuntimeError("没有找到 DEEPSEEK_API_KEY，请检查项目根目录的 .env 文件。")
+        model = os.getenv("DEEPSEEK_MODEL", MODEL)
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepseek.com",
+        )
+        return client, model, provider
+
+    if provider == "ollama":
+        model = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        client = OpenAI(
+            api_key="ollama",
+            base_url=base_url,
+        )
+        return client, model, provider
+
+    raise RuntimeError(f"不支持的 LLM_PROVIDER：{provider}，请填写 deepseek 或 ollama。")
 
 #定义一个函数，首先判断DATA_FILE是否为空，若为空则返回一个[]。这是一个空列表吗？
 #后面的json.loads这个函数我没看懂，还有isinstance这个函数我也没看懂
@@ -64,16 +79,16 @@ def trim_history(messages):
 
 
 #这个就是与将消息发送给Deepseek，然后接收deepseek的回复并返回。
-def ask_model(client, messages):
+def ask_model(client, model, messages, provider):
     # 流式发送，边接收边打印，返回完整文本
     stream = client.chat.completions.create(
-        model=MODEL,
+        model=model,
         messages=trim_history(messages),
         temperature=0.7,
         stream=True,
     )
 
-    print('DeepSeek：', end='', flush=True)
+    print(f'{provider}：', end='', flush=True)
 
     parts = []
     for chunk in stream:
@@ -91,13 +106,14 @@ def ask_model(client, messages):
 
 def main():
     try:
-        client = create_client()
+        client, model, provider = create_client()
     except RuntimeError as error:
         print(error)
         return
 
     messages = load_history()
-    print("DeepSeek 对话程序已启动。输入 exit、quit 或 退出 结束。")
+    print(f"当前使用：{provider} / {model}")
+    print(f"{provider} 对话程序已启动。输入 exit、quit 或 退出 结束。")
 
     while True:
         user_input = input("你：").strip()
@@ -112,7 +128,7 @@ def main():
         messages.append({"role": "user", "content": user_input})
 
         try:
-            reply = ask_model(client, messages)
+            reply = ask_model(client, model, messages, provider)
         except Exception as error:
             messages.pop()
             print(f'\n调用模型失败：{error}')
