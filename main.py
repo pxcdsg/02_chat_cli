@@ -64,13 +64,28 @@ def trim_history(messages):
 
 #这个就是与将消息发送给Deepseek，然后接收deepseek的回复并返回。
 def ask_model(client, messages):
-    """把消息发送给 DeepSeek，并返回模型的文本回复。"""
-    response = client.chat.completions.create(
+    # 流式发送，边接收边打印，返回完整文本
+    stream = client.chat.completions.create(
         model=MODEL,
         messages=trim_history(messages),
         temperature=0.7,
+        stream=True,
     )
-    return response.choices[0].message.content
+
+    print('DeepSeek：', end='', flush=True)
+
+    parts = []
+    for chunk in stream:
+        if not chunk.choices:
+            continue
+
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            print(delta.content, end='', flush=True)
+            parts.append(delta.content)
+
+    print()
+    return ''.join(parts)
 
 
 def main():
@@ -99,10 +114,9 @@ def main():
             reply = ask_model(client, messages)
         except Exception as error:
             messages.pop()
-            print(f"调用模型失败：{error}")
+            print(f'\n调用模型失败：{error}')
             continue
 
-        print(f"DeepSeek：{reply}")
         messages.append({"role": "assistant", "content": reply})
         save_history(messages)
 
